@@ -1,0 +1,99 @@
+direction: right
+vars: {
+  d2-config: {
+    theme-overrides: {
+      # B1: "#2E7D32"
+      # B2: "#66BB6A"
+      # B3: "#A5D6A7"
+      # B4: "#C5E1A5"
+      # B5: "#E6EE9C"
+      # B6: "#FFF59D"
+
+      # AA2: "#0D47A1"
+      # AA4: "#42A5F5"
+      # AA5: "#90CAF9"
+
+      # AB4: "#F44336"
+      # AB5: "#FFCDD2"
+    }
+  }
+}
+
+staging-pg: Staging Postgres (Supabase) {
+  style.shadow: true
+
+  products: {
+    shape: sql_table
+    id: bigint {constraint: primary_key}
+    tenant_id: bigint {constraint: [foreign_key; unique]}
+    name: text {constraint: unique}
+    product_group_id: bigint {constraint: foreign_key}
+  }
+  product_groups: {
+    shape: sql_table
+    id: bigint {constraint: primary_key}
+    name: text {constraint: unique}
+  }
+
+  products.product_group_id -> product_groups.id
+}
+
+schemamap: "" {
+  smio: "" {
+    shape: image
+    icon: https://schemamap.io/static/favicons/favicon.svg
+    width: 50
+  }
+
+  smio-features: |md
+    - Subset by tenant and `WHERE` condition
+    - Anonymize PII & Transform via `SQL`
+    - Adjust mapping automatically for schema differences
+    - Provide secure TCP tunnels & auditing of data migrations
+  |
+  smio-features: {
+    style.font-size: 25
+  }
+}
+
+local-pg: Local Postgres (Docker) {
+  style.shadow: true
+
+  products: {
+    shape: sql_table
+    id: bigint {constraint: primary_key}
+    tenant_id: bigint {constraint: [foreign_key; unique]}
+    name: text {constraint: unique}
+    description: text
+    product_group_id: bigint {constraint: foreign_key}
+  }
+  product_groups: {
+    shape: sql_table
+    id: bigint {constraint: primary_key}
+    name: text {constraint: unique}
+    ordinal_position: int
+  }
+
+  products.product_group_id -> product_groups.id
+
+  schemamap: {
+    data_migrations: {
+      shape: sql_table
+      id: bigint {constraint: "= 1"}
+      status: text {constraint: "= LOADED"}
+    }
+
+    unlogged_tables: {
+      style.multiple: true
+    }
+
+    dm_1_import()
+  }
+  schemamap.dm_1_import() -> products
+  schemamap.dm_1_import() -> product_groups
+}
+
+staging-pg -> schemamap: "2. Copy binary data" {style: {font-size: 26}}
+schemamap -> local-pg.schemamap.data_migrations: 1. INSERT data migration => ID: 1 {style: {font-size: 25}}
+schemamap -> local-pg.schemamap.unlogged_tables: 2. Copy binary data to UNLOGGED tables {style: {font-size: 25}}
+schemamap -> local-pg.schemamap.dm_1_import(): 3. Generate SQL function to locally import data to target tables {style: {font-size: 25}}
